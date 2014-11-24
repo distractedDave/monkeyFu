@@ -19,9 +19,9 @@
 #
 
 """
-aminatorplugins.provisioner.chef
+aminatorplugins.provisioner.chef-zero
 ================================
-basic chef solo provisioner
+basic chef zero provisioner
 """
 import logging
 import os
@@ -47,7 +47,7 @@ class ChefProvisionerPlugin(BaseProvisionerPlugin):
 
     def add_plugin_args(self):
         context = self._config.context
-        chef_config = self._parser.add_argument_group(title='Chef Solo Options', description='Options for the chef solo provisioner')
+        chef_config = self._parser.add_argument_group(title='Chef Zero Options', description='Options for the chef zero provisioner')
 
         chef_config.add_argument('-R', '--runlist', dest='runlist', help='Chef run list items. If not set, run list should be specified in the node JSON file',
                                  action=conf_action(self._config.plugins[self.full_name]))
@@ -61,6 +61,8 @@ class ChefProvisionerPlugin(BaseProvisionerPlugin):
                                  action=conf_action(self._config.plugins[self.full_name]))
         chef_config.add_argument('--omnibus-url', dest='omnibus_url', help='Path to the omnibus install script (default: %s)' % self._default_omnibus_url,
                                  action=conf_action(self._config.plugins[self.full_name]))
+
+
         
 
     def get_config_value(self, name, default):
@@ -94,10 +96,10 @@ class ChefProvisionerPlugin(BaseProvisionerPlugin):
             log.critical('Missing required argument for chef provisioner: --payload-url')
             return CommandResult(False, CommandOutput('', 'Missing required argument for chef provisioner: --payload-url'))
 
-        if os.path.exists("/opt/chef/bin/chef-solo"):
+        if os.path.exists("/opt/chef/bin/chef-zero"):
             log.debug('Omnibus chef is already installed, skipping install')
         else:
-            log.debug('Installing omnibus chef-solo')
+            log.debug('Installing omnibus chef-zero')
             result = install_omnibus_chef(chef_version, omnibus_url)
             if not result.success:
                 log.critical('Failed to install chef')
@@ -112,13 +114,13 @@ class ChefProvisionerPlugin(BaseProvisionerPlugin):
     def _provision_package(self):
         result = self._install_payload_and_chef()
         if not result.success:
-            log.critical('Failed to install chef-solo/payload: {0.std_err}'.format(result.result))
+            log.critical('Failed to install chef-zero/payload: {0.std_err}'.format(result.result))
             return False
 
         context = self._config.context
         config = self._config.plugins[self.full_name]
 
-        log.debug('Running chef-solo for run list items: %s' % config.get('runlist'))
+        log.debug('Running chef-zero for run list items: %s' % config.get('runlist'))
         return chef_solo(config.get('runlist'))
 
 
@@ -133,6 +135,9 @@ class ChefProvisionerPlugin(BaseProvisionerPlugin):
 def curl_download(src, dst):
     return 'curl {0} -o {1}'.format(src, dst)
 
+@command()
+def svn_download(src, dst);
+    return 'svn {0} -o {1}'.format(src, dst)
 
 @command()
 def install_omnibus_chef(chef_version, omnibus_url):
@@ -148,9 +153,16 @@ def chef_solo(runlist):
     else:
         return 'chef-solo -j /tmp/node.json -c /tmp/solo.rb'
 
+@command()
+def chef_zero(runlist):
+    if runlist:
+        return 'chef-client -z -o {0}'.format(runlist)
+    else:
+        return 'chef-client -z '
 
 @command()
 def fetch_chef_payload(payload_url):
-    curl_download(payload_url, '/tmp/chef_payload.tar.gz')
+    #curl_download(payload_url, '/tmp/chef_payload.tar.gz')
+    svn_download(payload_url, '/tmp/chef-zero-repo')
 
-    return 'tar -C /tmp -xf /tmp/chef_payload.tar.gz'.format(payload_url)
+#    return 'tar -C /tmp -xf /tmp/chef_payload.tar.gz'.format(payload_url)
